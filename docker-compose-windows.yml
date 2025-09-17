@@ -2,7 +2,7 @@
 version: '3'
 services:
   bareos-dir:
-    image: barcus/bareos-director:21-ubuntu-pgsql
+    image: barcus/bareos-director:latest
     volumes:
       - bareos_config_director:/etc/bareos
       - bareos_data_director:/var/lib/bareos # required for MyCatalog backup
@@ -30,7 +30,7 @@ services:
       - "9101:9101"
 
   bareos-sd:
-    image: barcus/bareos-storage:21-ubuntu
+    image: barcus/bareos-storage:latest
     ports:
       - 9103:9103
     volumes:
@@ -40,7 +40,7 @@ services:
       - BAREOS_SD_PASSWORD=${BAREOS_SD_PASSWORD} # defined in .env file
 
   bareos-fd:
-    image: barcus/bareos-client:21-ubuntu
+    image: barcus/bareos-client:latest
     volumes:
       - bareos_config_client:/etc/bareos
       - bareos_data_director:/var/lib/bareos-director # required for MyCatalog backup
@@ -50,16 +50,26 @@ services:
       - FORCE_ROOT=false
 
   bareos-webui:
-    image: barcus/bareos-webui:21-ubuntu
+    image: barcus/bareos-webui:22-alpine
     ports:
-      - 8080:80
+      - 8080:9100
     environment:
       - BAREOS_DIR_HOST=bareos-dir
+      - PHP_FPM_HOST=php-fpm
+      - PHP_FPM_PORT=9000
       - SERVER_STATS=yes
     volumes:
       - bareos_config_webui:/etc/bareos-webui
+      - bareos_webui_data:/usr/share/bareos-webui
     depends_on:
       - bareos-dir
+      - php-fpm
+
+  php-fpm:
+    image: barcus/php-fpm-alpine
+    volumes:
+      - bareos_config_webui:/etc/bareos-webui
+      - bareos_webui_data:/usr/share/bareos-webui
 
   bareos-db:
     image: postgres:13
@@ -81,5 +91,6 @@ volumes:
   bareos_data_storage:
   bareos_config_client:
   bareos_config_webui:
+  bareos_webui_data:
 
 #EOF
