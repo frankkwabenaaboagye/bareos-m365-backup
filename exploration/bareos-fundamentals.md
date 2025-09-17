@@ -145,4 +145,3 @@ M365 API Script → Command Plugin → Bareos File Daemon → Storage Daemon →
 - More mature Docker support
 - Better plugin ecosystem
 
-Let's start with a local Windows installation to understand the basics!
