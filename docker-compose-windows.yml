@@ -1,0 +1,85 @@
+## docker-compose Bareos Director/Storage/Client/webUI and PostgreSQL Database based on Ubuntu - Windows adapted
+version: '3'
+services:
+  bareos-dir:
+    image: barcus/bareos-director:21-ubuntu-pgsql
+    volumes:
+      - bareos_config_director:/etc/bareos
+      - bareos_data_director:/var/lib/bareos # required for MyCatalog backup
+    environment:
+      - DB_INIT=true #should be 'true' if bareos db does not exist
+      - DB_UPDATE=false
+      - DB_HOST=bareos-db
+      - DB_PORT=5432
+      - DB_NAME=bareos
+      - DB_USER=bareos
+      - DB_PASSWORD=${DB_PASSWORD} # defined in .env file
+      - DB_ADMIN_USER=${DB_ADMIN_USER} # defined in .env file
+      - DB_ADMIN_PASSWORD=${DB_ADMIN_PASSWORD} # defined in .env file
+      - BAREOS_SD_HOST=bareos-sd
+      - BAREOS_SD_PASSWORD=${BAREOS_SD_PASSWORD} # defined in .env file
+      - BAREOS_FD_HOST=bareos-fd
+      - BAREOS_FD_PASSWORD=${BAREOS_FD_PASSWORD} # defined in .env file
+      - BAREOS_WEBUI_PASSWORD=${BAREOS_WEBUI_PASSWORD} # defined in .env file
+      - SMTP_HOST=smtpd:8025 # Local smtp container
+      - ADMIN_MAIL=admin@example.com # Change me!
+      - WEBHOOK_NOTIFICATION=false # true or false if set to true email notification gets disabled
+    depends_on:
+      - bareos-db
+    ports:
+      - "9101:9101"
+
+  bareos-sd:
+    image: barcus/bareos-storage:21-ubuntu
+    ports:
+      - 9103:9103
+    volumes:
+      - bareos_config_storage:/etc/bareos
+      - bareos_data_storage:/var/lib/bareos/storage
+    environment:
+      - BAREOS_SD_PASSWORD=${BAREOS_SD_PASSWORD} # defined in .env file
+
+  bareos-fd:
+    image: barcus/bareos-client:21-ubuntu
+    volumes:
+      - bareos_config_client:/etc/bareos
+      - bareos_data_director:/var/lib/bareos-director # required for MyCatalog backup
+      - ./test-data:/data:ro # Mount our test data
+    environment:
+      - BAREOS_FD_PASSWORD=${BAREOS_FD_PASSWORD} # defined in .env file
+      - FORCE_ROOT=false
+
+  bareos-webui:
+    image: barcus/bareos-webui:21-ubuntu
+    ports:
+      - 8080:80
+    environment:
+      - BAREOS_DIR_HOST=bareos-dir
+      - SERVER_STATS=yes
+    volumes:
+      - bareos_config_webui:/etc/bareos-webui
+    depends_on:
+      - bareos-dir
+
+  bareos-db:
+    image: postgres:13
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${DB_ADMIN_USER} # defined in .env file
+      - POSTGRES_PASSWORD=${DB_ADMIN_PASSWORD} # defined in .env file
+      - POSTGRES_INITDB_ARGS=--encoding=SQL_ASCII
+
+  smtpd:
+    image: devture/exim-relay
+
+volumes:
+  postgres_data:
+  bareos_config_director:
+  bareos_data_director:
+  bareos_config_storage:
+  bareos_data_storage:
+  bareos_config_client:
+  bareos_config_webui:
+
+#EOF

@@ -1,0 +1,67 @@
+services:
+  # Database for Bareos catalog
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: bareos
+      POSTGRES_USER: bareos
+      POSTGRES_PASSWORD: bareos
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - bareos
+
+  # Bareos Director - the main management component
+  bareos-dir:
+    image: barcus/bareos-director:latest
+    environment:
+      DB_HOST: postgres
+      DB_PASSWORD: bareos
+      BAREOS_FD_HOST: bareos-fd
+      BAREOS_SD_HOST: bareos-sd
+    depends_on:
+      - postgres
+    ports:
+      - "9101:9101"
+    volumes:
+      - bareos_data:/var/lib/bareos
+    networks:
+      - bareos
+
+  # Bareos Storage Daemon - handles storage operations
+  bareos-sd:
+    image: barcus/bareos-storage:latest
+    ports:
+      - "9103:9103"
+    volumes:
+      - bareos_storage:/var/lib/bareos/storage
+    networks:
+      - bareos
+
+  # Bareos File Daemon - backup client
+  bareos-fd:
+    image: barcus/bareos-client:latest
+    volumes:
+      - ./test-data:/data:ro
+    networks:
+      - bareos
+
+  # Web UI for Bareos
+  bareos-webui:
+    image: barcus/bareos-webui:latest
+    ports:
+      - "8080:80"
+    environment:
+      BAREOS_DIR_HOST: bareos-dir
+    depends_on:
+      - bareos-dir
+    networks:
+      - bareos
+
+volumes:
+  postgres_data:
+  bareos_data:
+  bareos_storage:
+
+networks:
+  bareos:
